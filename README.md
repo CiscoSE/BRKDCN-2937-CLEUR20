@@ -27,8 +27,8 @@ During the demo's was Ansible running inside a docker container for ease of port
 
 Smart people responsible for the creation and maintenance of this project:
 
-* Morten Skriver <moskrive@cisco.com>
-* Peter Charpentier <pcharpen@cisco.com>
+* Morten Skriver (<moskrive@cisco.com>)
+* Peter Charpentier (<pcharpen@cisco.com>)
 
 ## License
 
