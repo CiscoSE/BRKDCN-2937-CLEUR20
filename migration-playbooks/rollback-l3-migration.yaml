@@ -1,0 +1,131 @@
+# Copyright (c) 2020 Cisco and/or its affiliates.
+#
+# This software is licensed to you under the terms of the Cisco Sample
+# Code License, Version 1.1 (the "License"). You may obtain a copy of the
+# License at
+#
+#                https://developer.cisco.com/docs/licenses
+#
+# All use of the material herein must be in accordance with the terms of
+# the License. All rights not expressly granted by the License are
+# reserved. Unless required by applicable law or agreed to separately in
+# writing, software distributed under the License is distributed on an "AS
+# IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied.
+
+---
+  - name: Rollback Layer-3 Migration (ACI)
+    hosts: aci
+    gather_facts: False
+    tasks:
+      - name: Remove subnet from BD (wordpress_db)
+        aci_bd_subnet:
+          host: '{{ inventory_hostname }}'
+          username: '{{ apic_username }}'
+          password: '{{ apic_password }}' 
+          validate_certs: false
+          tenant: BRKDCN-2937
+          bd: wordpress_db
+          subnet_name: wordpress_db
+          gateway: 100.64.130.1
+          mask: 24
+          scope: public
+          state: absent
+        delegate_to: localhost
+      - name: Change BD (wordpress_db) to L2 Mode
+        aci_bd:
+          host: '{{ inventory_hostname }}'
+          username: '{{ apic_username }}'
+          password: '{{ apic_password }}' 
+          validate_certs: false
+          tenant: BRKDCN-2937
+          vrf: l2_migration
+          bd: wordpress_db
+          mac_address: "00:22:BD:F8:19:FF"
+          enable_routing: no
+          arp_flooding: yes
+          l2_unknown_unicast: flood
+          l3_unknown_multicast: flood
+          multi_dest: bd-flood
+          state: present
+        delegate_to: localhost
+      
+  - name: Rollback Layer-3 Migration (NXOS)
+    hosts: nxos
+    gather_facts: False
+    tasks:
+      - name: Enable VLAN in existing Network
+        nxos_config:
+          lines:
+            - no shutdown
+          parents: interface Vlan130
+          save_when: modified
+  
+  - name: Rollback Prepare Layer-3 Migration (ACI)
+    hosts: aci
+    gather_facts: False
+    tasks:
+    - name: De-Associate BD (wordpress_bd) to L3out(s)
+      aci_bd_to_l3out:
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        tenant: BRKDCN-2937
+        bd: wordpress_db
+        l3out: "{{ item }}"
+        state: absent
+      delegate_to: localhost
+      loop:
+        - "Campus_Uplink"
+        - "Existing_Interconnect"
+    - name: Delete Contract (wordpress_db)
+      aci_contract:
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        tenant: BRKDCN-2937
+        contract: wordpress_db
+        scope: context
+        state: absent
+      delegate_to: localhost
+    - name: Delete Contract Filter (tcp_3306)
+      aci_filter:
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        tenant: BRKDCN-2937
+        filter: tcp_3306
+        state: absent
+      delegate_to: localhost
+    - name: Delete Provide Contract (wordpress_db) by EPG
+      # Using the aci_rest module, as aci_epg_to_contract seems attempt removing epg
+      aci_rest:  
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        path: /api/node/mo/uni/tn-BRKDCN-2937/ap-wordpress/epg-db/rsprov-wordpress_db.json
+        method: post
+        content:
+          fvRsProv:
+            attributes:
+              dn: "uni/tn-BRKDCN-2937/ap-wordpress/epg-db/rsprov-wordpress_db"
+              status: "deleted"
+      delegate_to: localhost
+    - name: Delete Consume Contract (wordpress_db) by External EPG
+      aci_rest:  
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        path: /api/mo/uni/tn-BRKDCN-2937/out-Existing_Interconnect/instP-existing_dc.json
+        method: post
+        content:
+          fvRsCons:
+            attributes:
+              tnVzBrCPName: "wordpress_db"
+              status: "deleted"
+      delegate_to: localhost

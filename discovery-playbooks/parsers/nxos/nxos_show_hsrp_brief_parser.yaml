@@ -1,0 +1,77 @@
+# Copyright (c) 2020 Cisco and/or its affiliates.
+#
+# This software is licensed to you under the terms of the Cisco Sample
+# Code License, Version 1.1 (the "License"). You may obtain a copy of the
+# License at
+#
+#                https://developer.cisco.com/docs/licenses
+#
+# All use of the material herein must be in accordance with the terms of
+# the License. All rights not expressly granted by the License are
+# reserved. Unless required by applicable law or agreed to separately in
+# writing, software distributed under the License is distributed on an "AS
+# IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied.
+---
+    # NXOS "show hsrp brief" Parser
+    #
+    # Command:
+    # - show hsrp brief
+    #
+    # Example Output:
+    #
+    #    SWITCH# show hsrp brief
+    #    *:IPv6 group   #:group belongs to a bundle
+    #                         P indicates configured to preempt.
+    #                         |
+    #     Interface   Grp  Prio P State    Active addr      Standby addr     Group addr
+    #      Vlan110     110  110  P Active   local            100.64.110.3     100.64.110.1    (conf)
+    #      Vlan120     120  110  P Active   local            100.64.120.3     100.64.120.1    (conf)
+    #      Vlan130     130  110  P Initial  unknown          unknown          100.64.130.1    (conf)
+    #      Vlan190     190  110  P Active   local            100.64.190.3     100.64.190.1    (conf)
+    #
+    # Example Playbook:
+    #
+    #    - name: Execute show hsrp brief
+    #      nxos_command:
+    #          commands: "show hsrp brief"
+    #      register: "show_hsrp_brief_output"
+    #      ignore_errors: yes
+    #    - name: Create fact based on show hsrp brief
+    #      set_fact:
+    #        net_hsrp: "{{ (show_hsrp_brief_output.stdout[0] | parse_cli('./parsers/nxos/nxos_show_hsrp_brief_parser.yaml')).hsrp_groups }}"
+    #      when: show_hsrp_brief_output is defined
+    #
+    # Schema Output
+    #
+    # [device_name] => {
+    #    "ansible_facts": {
+    #        "net_hsrp": [
+    #            {
+    #              "active_address": "local",
+    #              "group_address": "100.64.120.1",
+    #              "group_id": 120,
+    #              "interface": "Vlan120",
+    #              "priority": 110,
+    #              "standby_address": "100.64.120.3",
+    #              "state": "Active"
+    #          }
+    #     ]
+    #    },
+    
+    vars:
+      hsrp:
+        interface: "{{ item.interface }}"
+        group_id: "{{ item.group }}"
+        priority: "{{ item.priority }}"
+        state: "{{ item.state }}"
+        active_address: "{{ item.active_addr }}"
+        standby_address: "{{ item.standby_addr }}"
+        group_address: "{{ item.group_addr }}"
+    
+    keys:
+      hsrp_groups:
+        value: "{{ hsrp }}"
+        items: "^\\s+(?P<interface>\\S+)\\s+(?P<group>\\d+)\\s+(?P<priority>\\d+)\\s+(P\\s)?(?P<state>\\S+)\\s+(?P<active_addr>\\S+)\\s+(?P<standby_addr>\\S+)\\s+(?P<group_addr>\\S+)\\s+.+$"    
+
+        

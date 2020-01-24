@@ -1,0 +1,58 @@
+# Copyright (c) 2020 Cisco and/or its affiliates.
+#
+# This software is licensed to you under the terms of the Cisco Sample
+# Code License, Version 1.1 (the "License"). You may obtain a copy of the
+# License at
+#
+#                https://developer.cisco.com/docs/licenses
+#
+# All use of the material herein must be in accordance with the terms of
+# the License. All rights not expressly granted by the License are
+# reserved. Unless required by applicable law or agreed to separately in
+# writing, software distributed under the License is distributed on an "AS
+# IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied.
+
+---
+- name: Rollback pre-Migraiton Configuration (ACI)
+  hosts: aci
+  gather_facts: False
+  tasks:
+    - name: Delete BD (wordpress_db)
+      aci_bd:
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        tenant: BRKDCN-2937
+        vrf: l2_migration
+        bd: wordpress_db
+        enable_routing: no
+        arp_flooding: yes
+        l2_unknown_unicast: flood
+        l3_unknown_multicast: flood
+        multi_dest: bd-flood
+        state: absent
+      delegate_to: localhost
+    - name: Delete EPG (db) for application Wordpress
+      aci_epg:
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        tenant: BRKDCN-2937
+        ap: wordpress
+        epg: db
+        bd: wordpress_db
+        state: absent
+      delegate_to: localhost
+    - name: Delete Application Profile (wordpress)
+      aci_ap:
+        host: '{{ inventory_hostname }}'
+        username: '{{ apic_username }}'
+        password: '{{ apic_password }}' 
+        validate_certs: false
+        tenant: BRKDCN-2937
+        ap: wordpress
+        state: absent
+      delegate_to: localhost

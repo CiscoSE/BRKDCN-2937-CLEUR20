@@ -1,0 +1,87 @@
+# Copyright (c) 2020 Cisco and/or its affiliates.
+#
+# This software is licensed to you under the terms of the Cisco Sample
+# Code License, Version 1.1 (the "License"). You may obtain a copy of the
+# License at
+#
+#                https://developer.cisco.com/docs/licenses
+#
+# All use of the material herein must be in accordance with the terms of
+# the License. All rights not expressly granted by the License are
+# reserved. Unless required by applicable law or agreed to separately in
+# writing, software distributed under the License is distributed on an "AS
+# IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied.
+
+---
+# NXOS "show ip arp vrf " Parser
+#
+# Command:
+# - show ip arp vrf 
+#
+# Example Output:
+#
+#     SWITCH# show ip arp vrf default
+#
+#     Flags: * - Adjacencies learnt on non-active FHRP router
+#            + - Adjacencies synced via CFSoE
+#            # - Adjacencies Throttled for Glean
+#            CP - Added via L2RIB, Control plane Adjacencies
+#            PS - Added via L2RIB, Peer Sync
+#            RO - Re-Originated Peer Sync Entry
+#            D - Static Adjacencies attached to down interface
+#
+#     IP ARP Table for context default
+#     Total number of entries: 3
+#     Address         Age       MAC Address     Interface       Flags
+#     10.4.0.13       00:03:06  5c83.8f30.0b7f  Ethernet1/49
+#     10.4.0.29       00:17:13  5c83.8f30.0c7f  Ethernet1/50
+#     10.4.0.6        00:14:02  84b2.6153.b3f9  Vlan3600
+#
+# Example Playbook:
+#
+#    - name: Execute show vrf
+#      nxos_command:
+#        commands: show vrf
+#      register: show_vrf_output
+#    - name: Create fact based on show vrf
+#      set_fact:
+#        net_vrf: "{{ (show_vrf_output.stdout[0] | parse_cli('./parsers/nxos/nxos_show_vrf_parser.yaml')).vrfs }}"
+#      when: show_vrf_output.stdout is defined
+#    - name: Execute show ip arp vrf
+#      nxos_command:
+#        commands: "show ip arp vrf {{ item.name }}"
+#      register: "show_ip_arp_vrf_output"
+#      with_items:
+#        - "{{ net_vrf }}"
+#    - name: Create fact based on show ip arp vrf
+#      set_fact:
+#        "net_arp_vrf_{{ item.item.name}}": "{{ item.stdout[0] | parse_cli('./parsers/nxos/nxos_show_ip_arp_vrf_parser.yaml')}.entries}"
+#      with_items:
+#        - "{{ show_ip_arp_vrf_output.results }}"#
+#
+# Schema Output
+#
+# [device_name] => {
+#    "ansible_facts": {
+#        "net_arp_vrf_default": [
+#            {
+#                "address": "10.4.0.13",
+#                "mac_address": "5c83.8f30.0b7f",
+#                "interface": "Ethernet1/49",
+#            }
+#        ]
+#    },
+
+vars:
+  arp_entry:
+    address: "{{ item.address }}"
+    mac_address: "{{ item.mac_address }}"
+    interface: "{{ item.interface }}"
+
+keys:
+  arp_entries:
+    value: "{{ arp_entry }}"
+    items: "^(?P<address>[0-9.]+)\\s{2,}([0-9]{1,}\\:[0-9]{1,}\\:[0-9]{1,}|-)\\s{2,}(?P<mac_address>\\w{4}\\.\\w{4}\\.\\w{4})\\s{2,}(?P<interface>\\S+)\\s*"    
+
+    
